@@ -1,0 +1,1428 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>刪川科技</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, "Microsoft YaHei", sans-serif;
+            background: #0a0a1a;
+            min-height: 100vh;
+            overflow-x: hidden;
+            transition: background 0.8s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        @media (prefers-color-scheme: dark) {
+            body { background: #000000; }
+        }
+
+        body::before {
+            content: '';
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: 
+                radial-gradient(2px 2px at 20px 30px, #eee, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 40px 70px, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 90px 40px, #ddd, rgba(0,0,0,0)),
+                radial-gradient(2px 2px at 160px 120px, #fff, rgba(0,0,0,0)),
+                radial-gradient(1px 1px at 200px 80px, #ccc, rgba(0,0,0,0));
+            background-repeat: repeat; background-size: 250px 250px;
+            animation: stars 4s linear infinite; opacity: 0.3; z-index: 0; transition: opacity 0.5s;
+        }
+
+        body.stars-off::before { opacity: 0; animation: none; }
+
+        @keyframes stars { from { transform: translateY(0); } to { transform: translateY(-250px); } }
+
+        #matrixCanvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none; opacity: 0;
+            transition: opacity 0.8s ease;
+        }
+        #matrixCanvas.active { opacity: 1; }
+
+        #seasonContainer {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 0; pointer-events: none; overflow: hidden;
+        }
+
+        .season-particle { position: absolute; pointer-events: none; animation: fall linear infinite; }
+
+        @keyframes fall {
+            from { transform: translateY(-20px) rotate(0deg); opacity: 1; }
+            to { transform: translateY(110vh) rotate(360deg); opacity: 0.3; }
+        }
+
+        .click-ripple {
+            position: fixed; border-radius: 50%; pointer-events: none; z-index: 9999;
+            animation: rippleOut 0.7s ease-out forwards;
+        }
+        @keyframes rippleOut { from { transform: scale(0); opacity: 0.6; } to { transform: scale(4); opacity: 0; } }
+
+        .click-particle { position: fixed; pointer-events: none; z-index: 9999; animation: particleBurst 0.8s ease-out forwards; }
+        @keyframes particleBurst { from { opacity: 1; transform: scale(1) translate(0,0); } to { opacity: 0; transform: scale(0.3) translate(var(--tx), var(--ty)); } }
+
+        .click-heart { position: fixed; pointer-events: none; z-index: 9999; animation: heartFloat 1s ease-out forwards; }
+        @keyframes heartFloat { from { opacity: 1; transform: scale(1) translateY(0); } to { opacity: 0; transform: scale(1.5) translateY(-80px); } }
+
+        .click-firework { position: fixed; pointer-events: none; z-index: 9999; border-radius: 50%; animation: fireworkBurst 0.9s ease-out forwards; }
+        @keyframes fireworkBurst { from { opacity: 1; transform: scale(0); } to { opacity: 0; transform: scale(1); } }
+
+        .touch-dot {
+            position: fixed; border-radius: 50%; pointer-events: none; z-index: 9997;
+            animation: touchDotFade 0.7s ease-out forwards;
+        }
+        @keyframes touchDotFade {
+            0% { opacity: 0.85; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.2); }
+        }
+
+        .touch-silk-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            pointer-events: none; z-index: 9992;
+        }
+
+        body.bg-solid { background: #000000 !important; }
+        body.bg-gradient { background: linear-gradient(135deg, #0a0a1a, #1a0a2e, #0a1a2e); }
+        body.bg-purple { background: linear-gradient(135deg, #0f0c29, #302b63, #24243e); }
+        body.bg-aurora { background: linear-gradient(180deg, #001a0a, #0a1a2e, #1a0a2e); }
+        body.bg-aurora::after {
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: radial-gradient(ellipse at 50% 80%, rgba(0,255,128,0.08), transparent 60%),
+                        radial-gradient(ellipse at 20% 60%, rgba(0,200,255,0.06), transparent 50%);
+            z-index: 0; pointer-events: none;
+        }
+        body.bg-cyber { background: linear-gradient(135deg, #0a0a0a, #1a0033, #0a0a2e); }
+        body.bg-cyber::after {
+            content: ''; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: repeating-linear-gradient(0deg, transparent, transparent 2px, rgba(255,0,255,0.02) 2px, rgba(255,0,255,0.02) 4px);
+            z-index: 0; pointer-events: none;
+        }
+        body.bg-ocean { background: linear-gradient(180deg, #001a2e, #003a5c, #001a2e); }
+        body.bg-fire { background: linear-gradient(180deg, #1a0000, #3a0a00, #1a0000); }
+
+        body.solid-mode::before { opacity: 0 !important; animation: none !important; }
+        body.solid-mode #seasonContainer { display: none !important; }
+        body.solid-mode .touch-silk-canvas { display: none !important; }
+
+        .topBar {
+            position: fixed; top: 20px; left: 20px; right: 20px; z-index: 100;
+            display: none; align-items: center; justify-content: space-between; pointer-events: none;
+        }
+        .topBar.unlocked { display: flex; }
+        .topBar > * { pointer-events: auto; }
+
+        .channelGroup { display: flex; gap: 10px; flex: 1; margin-right: 10px; }
+
+        .channelBtn {
+            height: 44px; border-radius: 22px; background: rgba(255,255,255,0.1); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 14px; cursor: pointer;
+            display: flex; align-items: center; justify-content: center; padding: 0 22px;
+            transition: all 0.3s; letter-spacing: 1px; animation: settingsPulse 3s ease-in-out infinite; flex: 1;
+        }
+        .channelBtn:hover { background: rgba(255,255,255,0.2); transform: scale(1.03); }
+        .channelBtn.haifangBtn { background: rgba(255,180,50,0.12); border-color: rgba(255,180,50,0.3); }
+        .channelBtn.haifangBtn:hover { background: rgba(255,180,50,0.25); }
+        .channelBtn.adminBtn { background: rgba(100,120,255,0.12); border-color: rgba(100,120,255,0.3); }
+        .channelBtn.adminBtn:hover { background: rgba(100,120,255,0.25); }
+
+        .settingsBtn {
+            width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 20px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center;
+            transition: all 0.3s; animation: settingsPulse 3s ease-in-out infinite; flex-shrink: 0;
+        }
+        .settingsBtn:hover { background: rgba(255,255,255,0.2); transform: rotate(90deg) scale(1.1); }
+
+        @keyframes settingsPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(255,255,255,0.1); }
+            50% { box-shadow: 0 0 0 8px rgba(255,255,255,0); }
+        }
+
+        .recommendBanner {
+            position: fixed; top: 80px; left: 20px; right: 20px; z-index: 99;
+            display: none; height: 48px; border-radius: 14px;
+            background: rgba(255,255,255,0.05); backdrop-filter: blur(12px);
+            border: 1px solid rgba(255,255,255,0.1);
+            overflow: hidden; pointer-events: none; transition: border-color 0.3s, box-shadow 0.3s;
+        }
+        .recommendBanner.unlocked { display: flex; }
+        .recommendBanner > * { pointer-events: auto; }
+        .recommendBanner:hover { border-color: rgba(255,180,50,0.25); box-shadow: 0 4px 20px rgba(255,180,50,0.08); }
+
+        .recText {
+            font-size: 14px; color: #ccc; letter-spacing: 0.5px;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+            flex: 1 1 auto; min-width: 0;
+            line-height: 48px; padding-left: 18px;
+        }
+        .recText .hl-chuan { color: #6cb4ff; font-weight: 600; text-shadow: 0 0 8px rgba(108,180,255,0.4); }
+        .recText .rec-dot { color: #444; margin: 0 8px; }
+        .recText .hl-yuanbao { color: #ffb432; font-weight: 600; text-shadow: 0 0 8px rgba(255,180,50,0.4); }
+
+        .recDownloadBtn {
+            flex: 0 0 auto; white-space: nowrap;
+            height: 32px; padding: 0 16px; border-radius: 16px;
+            background: linear-gradient(135deg, #ffb432, #ff6a00); border: none; color: #fff;
+            font-size: 13px; font-weight: 600; cursor: pointer;
+            display: flex; align-items: center; gap: 6px;
+            transition: all 0.3s; letter-spacing: 0.5px;
+            box-shadow: 0 2px 12px rgba(255,180,50,0.25);
+            margin: auto 10px auto 0;
+        }
+        .recDownloadBtn:hover { transform: scale(1.06); box-shadow: 0 4px 20px rgba(255,180,50,0.5); }
+
+        .channelModalOverlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.6); backdrop-filter: blur(8px);
+            z-index: 150; justify-content: center; align-items: center;
+            animation: fadeIn 0.3s ease;
+        }
+        .channelModalOverlay.active { display: flex; }
+        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+        .channelModalCard {
+            background: rgba(255,255,255,0.06); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.12); border-radius: 20px;
+            padding: 40px; max-width: 380px; width: 90%; text-align: center;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+            animation: modalIn 0.35s ease;
+        }
+        @keyframes modalIn { from { opacity: 0; transform: scale(0.9) translateY(20px); } to { opacity: 1; transform: scale(1) translateY(0); } }
+
+        .channelModalCard.shake { animation: modalShake 0.4s ease; }
+        @keyframes modalShake {
+            0%, 100% { transform: translateX(0); }
+            20% { transform: translateX(-12px); }
+            40% { transform: translateX(12px); }
+            60% { transform: translateX(-8px); }
+            80% { transform: translateX(8px); }
+        }
+
+        .channelModalCard .modalIcon { font-size: 48px; margin-bottom: 16px; }
+        .channelModalCard h3 { font-size: 18px; margin-bottom: 8px; font-weight: 600; letter-spacing: 2px; }
+        .channelModalCard .modalHint { font-size: 12px; margin-bottom: 24px; letter-spacing: 1px; }
+
+        #haifangModal .modalIcon { color: #ffb432; }
+        #haifangModal h3 { color: #ffb432; }
+        #haifangModal .modalHint { color: #666; }
+        #haifangModal .channelModalCard { border-color: rgba(255,180,50,0.2); box-shadow: 0 20px 60px rgba(255,180,50,0.08); }
+
+        #adminModal .modalIcon { color: #8fa8ff; }
+        #adminModal h3 { color: #8fa8ff; }
+        #adminModal .modalHint { color: #555; }
+        #adminModal .channelModalCard { border-color: rgba(100,120,255,0.2); box-shadow: 0 20px 60px rgba(100,120,255,0.08); }
+
+        .channelModalInput {
+            width: 100%; padding: 16px 20px; font-size: 18px; background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15); border-radius: 12px; color: #fff;
+            text-align: center; letter-spacing: 6px; outline: none; transition: all 0.3s;
+        }
+        .channelModalInput:focus { border-color: rgba(255,255,255,0.4); background: rgba(255,255,255,0.12); }
+        #haifangModal .channelModalInput:focus { border-color: rgba(255,180,50,0.5); box-shadow: 0 0 20px rgba(255,180,50,0.15); }
+        #adminModal .channelModalInput:focus { border-color: rgba(100,120,255,0.5); box-shadow: 0 0 20px rgba(100,120,255,0.15); }
+
+        .channelModalSubmit {
+            width: 100%; padding: 16px; font-size: 15px; font-weight: 600; color: white;
+            border: none; border-radius: 12px; cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.3s; margin-top: 16px; letter-spacing: 2px;
+        }
+        #haifangModal .channelModalSubmit { background: linear-gradient(135deg, #ffb432, #ff6a00); }
+        #haifangModal .channelModalSubmit:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,180,50,0.5); }
+        #adminModal .channelModalSubmit { background: linear-gradient(135deg, #667eea, #764ba2); }
+        #adminModal .channelModalSubmit:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102,126,234,0.5); }
+
+        .channelModalError { color: #ff4757; margin-top: 14px; font-size: 13px; min-height: 20px; }
+        .channelModalCancel {
+            margin-top: 12px; padding: 10px 24px; font-size: 13px; font-weight: 500;
+            background: transparent; border: 1px solid rgba(255,255,255,0.15); border-radius: 10px;
+            color: #888; cursor: pointer; transition: all 0.3s; letter-spacing: 1px;
+        }
+        .channelModalCancel:hover { background: rgba(255,255,255,0.06); color: #ccc; }
+
+        .channelPage {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 60; flex-direction: column; animation: pageIn 0.4s ease;
+        }
+        .channelPage.active { display: flex; }
+        @keyframes pageIn { from { opacity: 0; transform: scale(0.98); } to { opacity: 1; transform: scale(1); } }
+
+        #adminChannelPage { background: radial-gradient(ellipse at center, rgba(10,10,40,0.97), rgba(0,0,0,0.99)); }
+        #haifangChannelPage { background: radial-gradient(ellipse at center, rgba(30,20,5,0.97), rgba(0,0,0,0.99)); }
+        #hiddenChannelPage { background: radial-gradient(ellipse at center, rgba(30,5,5,0.97), rgba(0,0,0,0.99)); }
+
+        .channelPageHeader {
+            display: flex; align-items: center; justify-content: space-between;
+            padding: 20px 24px; border-bottom: 1px solid rgba(255,255,255,0.06);
+        }
+        .channelPageHeader h2 { font-size: 18px; font-weight: 600; letter-spacing: 2px; }
+        #adminChannelPage .channelPageHeader h2 { color: #8fa8ff; }
+        #haifangChannelPage .channelPageHeader h2 { color: #ffb432; }
+        #hiddenChannelPage .channelPageHeader h2 { color: #ff6b6b; }
+
+        .channelPageHeader .channelBackBtn {
+            padding: 10px 24px; font-size: 13px; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.2); border-radius: 12px;
+            background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer;
+            transition: all 0.3s; letter-spacing: 1px;
+        }
+        .channelPageHeader .channelBackBtn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+
+        .channelPageBody {
+            flex: 1; display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+            padding: 40px 20px; overflow-y: auto;
+        }
+
+        .channelContentView { width: 100%; max-width: 600px; text-align: center; }
+        .channelContentView h3 { font-size: 22px; margin-bottom: 12px; }
+        .channelContentView p { font-size: 14px; margin-bottom: 24px; }
+
+        .authTabs {
+            display: flex; gap: 0; margin-bottom: 24px; background: rgba(255,255,255,0.05);
+            border-radius: 12px; padding: 4px; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .authTab {
+            flex: 1; padding: 10px 20px; font-size: 14px; font-weight: 600; color: #888;
+            background: transparent; border: none; border-radius: 10px; cursor: pointer;
+            transition: all 0.3s; letter-spacing: 1px;
+        }
+        .authTab.active { background: rgba(100,120,255,0.2); color: #8fa8ff; }
+        .authTab:hover:not(.active) { color: #ccc; }
+
+        .authForm { width: 100%; max-width: 360px; margin: 0 auto; }
+        .authForm input {
+            width: 100%; padding: 14px 18px; font-size: 15px; background: rgba(255,255,255,0.08);
+            border: 2px solid rgba(255,255,255,0.15); border-radius: 12px; color: #fff;
+            text-align: center; outline: none; transition: all 0.3s; margin-bottom: 14px;
+        }
+        .authForm input:focus { border-color: rgba(100,120,255,0.5); background: rgba(255,255,255,0.12); box-shadow: 0 0 20px rgba(100,120,255,0.15); }
+        .authForm button {
+            width: 100%; padding: 14px; font-size: 15px; font-weight: 600; color: white;
+            border: none; border-radius: 12px; cursor: pointer; transition: transform 0.2s, box-shadow 0.3s;
+            letter-spacing: 2px; background: linear-gradient(135deg, #667eea, #764ba2);
+        }
+        .authForm button:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(102,126,234,0.5); }
+        .authForm .authError { color: #ff4757; margin-top: 10px; font-size: 13px; min-height: 20px; }
+
+        .accountList { width: 100%; max-width: 500px; margin-top: 20px; }
+        .accountItem {
+            display: flex; align-items: center; gap: 14px; padding: 14px 18px;
+            background: rgba(255,255,255,0.04); border: 1px solid rgba(255,255,255,0.08);
+            border-radius: 14px; margin-bottom: 10px; transition: all 0.3s; cursor: pointer;
+        }
+        .accountItem:hover { background: rgba(255,255,255,0.08); border-color: rgba(192,132,252,0.25); transform: translateX(4px); }
+        .accountAvatar { font-size: 32px; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center; background: rgba(255,255,255,0.06); border-radius: 50%; flex-shrink: 0; }
+        .accountInfo { flex: 1; text-align: left; }
+        .accountInfo .accountName { font-size: 15px; font-weight: 600; color: #fff; margin-bottom: 2px; }
+        .accountInfo .accountUid { font-size: 11px; color: #666; letter-spacing: 1px; }
+        .accountInfo .accountTime { font-size: 10px; color: #444; margin-top: 2px; }
+        .accountPwd { font-size: 12px; color: #ff6b6b; font-family: monospace; letter-spacing: 2px; }
+        .accountDeleteBtn {
+            padding: 8px 16px; font-size: 12px; font-weight: 600; color: #ff4757;
+            background: rgba(255,71,87,0.1); border: 1px solid rgba(255,71,87,0.25);
+            border-radius: 8px; cursor: pointer; transition: all 0.3s; flex-shrink: 0;
+        }
+        .accountDeleteBtn:hover { background: rgba(255,71,87,0.25); transform: scale(1.05); }
+
+        .profileCard {
+            background: rgba(255,255,255,0.04); backdrop-filter: blur(16px);
+            border: 1px solid rgba(100,120,255,0.2); border-radius: 24px;
+            padding: 40px; max-width: 420px; width: 100%; text-align: center;
+            box-shadow: 0 0 40px rgba(100,120,255,0.1);
+        }
+        .profileAvatar { font-size: 64px; margin-bottom: 16px; }
+        .profileName { font-size: 20px; font-weight: 700; color: #fff; margin-bottom: 6px; }
+        .profileUid { font-size: 13px; color: #8fa8ff; letter-spacing: 2px; margin-bottom: 4px; }
+        .profileTime { font-size: 11px; color: #555; margin-bottom: 24px; }
+
+        .loggedInHint { font-size: 12px; color: #555; margin-bottom: 16px; letter-spacing: 1px; }
+
+        #settingsPanel {
+            display: none; position: fixed; top: 0; right: 0; width: 340px; height: 100vh;
+            background: rgba(10,10,30,0.96); backdrop-filter: blur(20px);
+            border-left: 1px solid rgba(255,255,255,0.1); z-index: 200;
+            padding: 30px 25px; overflow-y: auto; animation: slideIn 0.3s ease;
+        }
+        #settingsPanel.active { display: block; }
+        @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+
+        .settingsHeader { display: flex; justify-content: space-between; align-items: center; margin-bottom: 25px; }
+        .settingsHeader h2 { color: #fff; font-size: 18px; }
+        .closeSettingsBtn { width: 32px; height: 32px; border-radius: 50%; background: rgba(255,255,255,0.1); border: none; color: #fff; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        .settingGroup { margin-bottom: 22px; }
+        .settingGroup h3 { color: #aaa; font-size: 11px; text-transform: uppercase; letter-spacing: 1.5px; margin-bottom: 10px; }
+
+        .settingItem { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid rgba(255,255,255,0.04); }
+        .settingItem label { color: #ccc; font-size: 13px; }
+        .settingItem select { background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: #fff; padding: 6px 10px; font-size: 12px; outline: none; cursor: pointer; transition: opacity 0.3s; }
+        .settingItem select option { background: #1a1a2e; color: #fff; }
+        .settingItem select:disabled { opacity: 0.35; cursor: not-allowed; }
+
+        .toggle { position: relative; width: 44px; height: 24px; cursor: pointer; }
+        .toggle input { display: none; }
+        .toggle .track { position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: rgba(255,255,255,0.15); border-radius: 12px; transition: background 0.3s; }
+        .toggle .thumb { position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform 0.3s; }
+        .toggle input:checked + .track { background: #007bff; }
+        .toggle input:checked + .track + .thumb { transform: translateX(20px); }
+
+        #settingsOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.4); z-index: 150; }
+
+        #lockScreen {
+            position: relative; z-index: 1; display: flex; flex-direction: column;
+            justify-content: center; align-items: center; min-height: 100vh; padding: 20px;
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        #lockScreen.fade-out { opacity: 0; transform: scale(0.95); pointer-events: none; }
+
+        .lockCard {
+            background: rgba(255,255,255,0.05); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 20px;
+            padding: 50px 40px; text-align: center; box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            max-width: 420px; width: 100%; animation: cardFloat 0.8s ease-out;
+        }
+        .lockCard h2 { color: #fff; font-size: 24px; margin-bottom: 8px; font-weight: 700; }
+        .lockCard .subtitle { color: #888; font-size: 13px; margin-bottom: 30px; }
+        .hint { display: inline-block; background: linear-gradient(135deg, rgba(0,123,255,0.2), rgba(102,126,234,0.2)); border: 1px solid rgba(0,123,255,0.3); color: #6cb4ff; padding: 8px 20px; border-radius: 20px; font-size: 14px; margin-bottom: 30px; letter-spacing: 2px; }
+        .hiddenHint { color: #333; font-size: 10px; margin-bottom: 20px; letter-spacing: 1px; transition: color 0.3s; cursor: default; }
+        .hiddenHint:hover { color: #555; }
+
+        .inputWrap { margin-bottom: 25px; }
+        #passwordInput { width: 100%; padding: 16px 20px; font-size: 18px; background: rgba(255,255,255,0.08); border: 2px solid rgba(255,255,255,0.15); border-radius: 12px; color: #fff; text-align: center; letter-spacing: 4px; outline: none; transition: all 0.3s; }
+        #passwordInput:focus { border-color: #007bff; box-shadow: 0 0 20px rgba(0,123,255,0.3); background: rgba(255,255,255,0.12); }
+
+        .enterBtn { width: 100%; padding: 16px; font-size: 16px; font-weight: 700; color: white; background: linear-gradient(135deg, #007bff, #0056b3); border: none; border-radius: 12px; cursor: pointer; transition: transform 0.2s, box-shadow 0.3s; letter-spacing: 2px; }
+        .enterBtn.glow-off { box-shadow: none; }
+        .enterBtn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(0,123,255,0.5); }
+        .enterBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+        #errorMsg { color: #ff4757; margin-top: 15px; font-size: 14px; min-height: 22px; }
+
+        .backToHomeBtn {
+            width: 100%; padding: 14px; font-size: 14px; font-weight: 600; color: #fff;
+            background: linear-gradient(135deg, #ff4757, #c0392b); border: none; border-radius: 12px;
+            cursor: pointer; transition: transform 0.2s, box-shadow 0.3s; margin-top: 10px;
+            letter-spacing: 2px; display: flex; align-items: center; justify-content: center; gap: 8px;
+        }
+        .backToHomeBtn:hover { transform: translateY(-2px); box-shadow: 0 8px 25px rgba(255,71,87,0.4); }
+
+        body.locked * { pointer-events: none !important; }
+        body.locked #lockScreen, body.locked #lockScreen * { pointer-events: auto !important; }
+
+        #mainContent {
+            display: none; position: relative; z-index: 1; min-height: 100vh;
+            flex-direction: column; justify-content: center; align-items: center;
+            animation: mainFadeIn 0.6s ease;
+            padding: 20px;
+        }
+        @keyframes mainFadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+
+        .welcomeCard {
+            background: rgba(255,255,255,0.04); backdrop-filter: blur(16px);
+            border: 1px solid rgba(255,255,255,0.1); border-radius: 24px;
+            padding: 48px 56px; text-align: center;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05);
+            display: flex; flex-direction: column; align-items: center; gap: 8px;
+            max-width: 420px; width: 100%;
+            animation: cardGlow 4s ease-in-out infinite;
+        }
+        @keyframes cardGlow {
+            0%, 100% { box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 0 rgba(0,123,255,0); }
+            50% { box-shadow: 0 8px 32px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.05), 0 0 20px rgba(0,123,255,0.06); }
+        }
+
+        .welcomeText { font-size: 16px; color: #999; letter-spacing: 2px; font-weight: 400; }
+        .welcomeSub { font-size: 11px; color: #3a3a3a; letter-spacing: 3px; margin-top: 4px; }
+
+        .pageFull {
+            display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 50; flex-direction: column; justify-content: center; align-items: center;
+            padding: 20px; animation: pageIn 0.4s ease;
+        }
+        .pageFull.active { display: flex; }
+
+        #pagePwd2 { background: radial-gradient(ellipse at center, rgba(20,5,30,0.97), rgba(0,0,0,0.99)); }
+        .page2Card {
+            background: rgba(255,255,255,0.03); backdrop-filter: blur(20px);
+            border: 1px solid rgba(192,132,252,0.15); border-radius: 20px;
+            padding: 40px; max-width: 480px; width: 100%; text-align: center;
+            box-shadow: 0 0 40px rgba(192,132,252,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .page2Card h2 { color: #c084fc; font-size: 20px; margin-bottom: 8px; font-weight: 600; letter-spacing: 2px; }
+        .page2Card .pageDesc { color: #555; font-size: 12px; margin-bottom: 30px; letter-spacing: 1px; }
+        .page2Card .pageIcon { font-size: 48px; margin-bottom: 16px; }
+
+        #pagePwd3 { background: radial-gradient(ellipse at center, rgba(30,20,5,0.95), rgba(0,0,0,0.98)); }
+        .page3Card {
+            background: rgba(255,180,50,0.04); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,180,50,0.15); border-radius: 20px;
+            padding: 40px; max-width: 480px; width: 100%; text-align: center;
+            box-shadow: 0 0 40px rgba(255,180,50,0.08), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .page3Card h2 { color: #ffb432; font-size: 20px; margin-bottom: 8px; font-weight: 600; letter-spacing: 2px; }
+        .page3Card .pageDesc { color: #666; font-size: 12px; margin-bottom: 30px; letter-spacing: 1px; }
+        .page3Card .pageIcon { font-size: 48px; margin-bottom: 16px; }
+
+        #pagePwd4 { background: radial-gradient(ellipse at center, rgba(30,5,5,0.95), rgba(0,0,0,0.98)); }
+        .page4Card {
+            background: rgba(255,50,50,0.03); backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,50,50,0.12); border-radius: 20px;
+            padding: 40px; max-width: 480px; width: 100%; text-align: center;
+            box-shadow: 0 0 40px rgba(255,50,50,0.06), inset 0 1px 0 rgba(255,255,255,0.05);
+        }
+        .page4Card h2 { color: #ff6b6b; font-size: 20px; margin-bottom: 8px; font-weight: 600; letter-spacing: 2px; }
+        .page4Card .pageDesc { color: #555; font-size: 12px; margin-bottom: 30px; letter-spacing: 1px; }
+        .page4Card .pageIcon { font-size: 48px; margin-bottom: 16px; }
+
+        .pageBackBtn {
+            margin-top: 24px; padding: 12px 36px; font-size: 13px; font-weight: 600;
+            border: 1px solid rgba(255,255,255,0.15); border-radius: 12px;
+            background: rgba(255,255,255,0.05); color: #aaa; cursor: pointer;
+            transition: all 0.3s; letter-spacing: 1.5px;
+        }
+        .pageBackBtn:hover { background: rgba(255,255,255,0.1); color: #fff; transform: translateY(-1px); }
+        .pageBackBtn.purple:hover { border-color: rgba(192,132,252,0.4); color: #c084fc; background: rgba(192,132,252,0.08); }
+        .pageBackBtn.blue:hover { border-color: rgba(100,120,255,0.4); color: #8fa8ff; background: rgba(100,120,255,0.08); }
+        .pageBackBtn.gold:hover { border-color: rgba(255,180,50,0.4); color: #ffb432; background: rgba(255,180,50,0.08); }
+        .pageBackBtn.red:hover { border-color: rgba(255,50,50,0.4); color: #ff6b6b; background: rgba(255,50,50,0.08); }
+
+        .toast {
+            position: fixed; top: 80px; left: 50%; transform: translateX(-50%) translateY(-20px);
+            background: rgba(0,255,136,0.15); backdrop-filter: blur(10px);
+            border: 1px solid rgba(0,255,136,0.3); color: #00ff88;
+            padding: 12px 28px; border-radius: 25px; font-size: 14px;
+            z-index: 9999; opacity: 0; pointer-events: none;
+            transition: all 0.4s ease; letter-spacing: 1px;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+        .lockTimer {
+            position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+            background: rgba(255,71,87,0.15); backdrop-filter: blur(10px);
+            border: 1px solid rgba(255,71,87,0.3); color: #ff4757;
+            padding: 10px 24px; border-radius: 20px; font-size: 13px;
+            z-index: 9999; display: none; letter-spacing: 1px;
+        }
+        .lockTimer.show { display: block; }
+
+        #haifangSiteBtn {
+            position: fixed; right: 0; top: 50%; transform: translateY(-50%);
+            z-index: 70; display: none; padding: 14px 18px;
+            writing-mode: vertical-rl; text-orientation: upright;
+            background: rgba(255,180,50,0.12); border: 1px solid rgba(255,180,50,0.45);
+            border-right: none; border-radius: 14px 0 0 14px;
+            color: #ffb432; font-size: 14px; letter-spacing: 2px;
+            text-decoration: none; backdrop-filter: blur(10px);
+            box-shadow: 0 0 18px rgba(255,180,50,0.15); transition: all 0.3s;
+        }
+        #haifangSiteBtn:hover {
+            background: rgba(255,180,50,0.25); transform: translateY(-50%) translateX(-4px);
+            box-shadow: 0 0 26px rgba(255,180,50,0.35);
+        }
+
+        @media (max-width: 600px) {
+            .lockCard { padding: 35px 25px; }
+            #settingsPanel { width: 100%; }
+            .topBar { left: 10px; right: 10px; }
+            .channelBtn { font-size: 12px; padding: 0 10px; }
+            .channelGroup { gap: 6px; }
+            .welcomeCard { padding: 36px 28px; border-radius: 20px; }
+            .welcomeText { font-size: 14px; }
+            .welcomeSub { font-size: 10px; }
+            .page2Card, .page3Card, .page4Card { padding: 30px 20px; }
+            .channelModalCard { padding: 30px 20px; }
+            #haifangSiteBtn { padding: 10px 14px; font-size: 12px; }
+            .recommendBanner { left: 10px; right: 10px; top: 76px; height: 44px; }
+            .recText { font-size: 12px; padding-left: 12px; }
+            .recText .rec-dot { margin: 0 4px; }
+            .recDownloadBtn { height: 28px; padding: 0 12px; font-size: 12px; margin: auto 8px auto 0; }
+            .accountItem { padding: 12px 14px; gap: 10px; }
+            .accountAvatar { font-size: 26px; width: 36px; height: 36px; }
+            .profileCard { padding: 30px 20px; }
+        }
+    </style>
+</head>
+<body class="locked stars-off">
+
+    <canvas id="matrixCanvas"></canvas>
+    <div id="seasonContainer"></div>
+    <canvas class="touch-silk-canvas" id="silkCanvas"></canvas>
+
+    <div class="topBar" id="topBarEl">
+        <div class="channelGroup">
+            <button class="channelBtn adminBtn" onclick="openAdminModal()">🔐 管理通道</button>
+            <button class="channelBtn haifangBtn" onclick="openHaifangModal()">🌊 海方通道</button>
+        </div>
+        <button class="settingsBtn" id="settingsBtnEl" onclick="openSettings()">⚙️</button>
+    </div>
+
+    <div class="recommendBanner" id="recommendBanner">
+        <span class="recText">
+            🔥 <span class="hl-chuan">刪川科技</span> 推荐
+            <span class="rec-dot">·</span>
+            ⚡ <span class="hl-yuanbao">元宝人工智能</span>
+        </span>
+        <button class="recDownloadBtn" onclick="window.open('https://yuanbao.tencent.com/download','_blank')">⬇ 下载</button>
+    </div>
+
+    <div id="settingsOverlay" onclick="closeSettings()"></div>
+
+    <!-- 海方通道弹窗 -->
+    <div class="channelModalOverlay" id="haifangModal">
+        <div class="channelModalCard">
+            <div class="modalIcon">🌊</div>
+            <h3>海方通道</h3>
+            <p class="modalHint">输入海方生日以验证身份</p>
+            <input type="password" class="channelModalInput" id="haifangModalPwd" placeholder="海方生日" onkeydown="if(event.key==='Enter') verifyHaifangModal()">
+            <button class="channelModalSubmit" onclick="verifyHaifangModal()">验 证</button>
+            <p class="channelModalError" id="haifangModalError"></p>
+            <button class="channelModalCancel" onclick="closeHaifangModal()">取 消</button>
+        </div>
+    </div>
+
+    <!-- 管理通道弹窗 -->
+    <div class="channelModalOverlay" id="adminModal">
+        <div class="channelModalCard">
+            <div class="modalIcon">🔐</div>
+            <h3>管理通道</h3>
+            <p class="modalHint">输入密码以验证身份</p>
+            <input type="password" class="channelModalInput" id="adminModalPwd" placeholder="输入密码" onkeydown="if(event.key==='Enter') verifyAdminModal()">
+            <button class="channelModalSubmit" onclick="verifyAdminModal()">验 证</button>
+            <p class="channelModalError" id="adminModalError"></p>
+            <button class="channelModalCancel" onclick="closeAdminModal()">取 消</button>
+        </div>
+    </div>
+
+    <!-- 通道页面 -->
+    <div class="channelPage" id="haifangChannelPage">
+        <div class="channelPageHeader">
+            <h2>🌊 海方通道</h2>
+            <button class="channelBackBtn" onclick="closeHaifangChannel()">← 返回</button>
+        </div>
+        <div class="channelPageBody">
+            <div class="channelContentView">
+                <h3 style="color:#ffb432;">海方通道</h3>
+                <p style="color:#666;">暂无内容</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="channelPage" id="adminChannelPage">
+        <div class="channelPageHeader">
+            <h2>🔐 管理通道</h2>
+            <button class="channelBackBtn" onclick="closeAdminChannel()">← 返回</button>
+        </div>
+        <div class="channelPageBody" id="adminChannelBody"></div>
+    </div>
+
+    <div class="channelPage" id="hiddenChannelPage">
+        <div class="channelPageHeader">
+            <h2>🔴 隐藏通道</h2>
+            <button class="channelBackBtn" onclick="closeHiddenChannel()">← 返回</button>
+        </div>
+        <div class="channelPageBody" id="hiddenChannelBody"></div>
+    </div>
+
+    <div id="settingsPanel">
+        <div class="settingsHeader"><h2>⚙️ 设置</h2><button class="closeSettingsBtn" onclick="closeSettings()">✕</button></div>
+        
+        <div class="settingGroup">
+            <h3>🎨 纯色模式</h3>
+            <div class="settingItem">
+                <label>纯色背景</label>
+                <label class="toggle">
+                    <input type="checkbox" id="solidModeToggle" onchange="toggleSolidMode(this.checked)">
+                    <div class="track"></div><div class="thumb"></div>
+                </label>
+            </div>
+        </div>
+
+        <div class="settingGroup">
+            <h3>🎨 背景</h3>
+            <div class="settingItem">
+                <label>背景样式</label>
+                <select id="bgSelect" onchange="changeBg(this.value, false)">
+                    <option value="stars">星空粒子</option>
+                    <option value="gradient">深蓝渐变</option>
+                    <option value="purple">紫色渐变</option>
+                    <option value="aurora">极光</option>
+                    <option value="cyber">赛博朋克</option>
+                    <option value="ocean">深海</option>
+                    <option value="fire">暗火</option>
+                </select>
+            </div>
+        </div>
+        <div class="settingGroup">
+            <h3>🍂 季节</h3>
+            <div class="settingItem"><label>季节</label><select id="seasonSelect" onchange="changeSeason(this.value, false)"><option value="none">无</option><option value="spring">🌸 春</option><option value="summer">🪲 夏</option><option value="autumn">🍁 秋</option><option value="winter">❄️ 冬</option></select></div>
+        </div>
+        <div class="settingGroup">
+            <h3>🖱️ 点击特效</h3>
+            <div class="settingItem"><label>特效类型</label><select id="clickEffectSelect" onchange="changeClickEffect(this.value, false)"><option value="ripple">涟漪扩散</option><option value="particle">粒子爆炸</option><option value="heart">爱心飞溅</option><option value="firework">烟花绽放</option><option value="none">关闭</option></select></div>
+        </div>
+        <div class="settingGroup">
+            <h3>👆 滑动特效</h3>
+            <div class="settingItem"><label>样式</label><select id="touchTrailSelect" onchange="changeTouchTrailStyle(this.value, false)"><option value="dot">粒子点</option><option value="silk">丝线连线</option><option value="none">关闭</option></select></div>
+        </div>
+        <div class="settingGroup">
+            <h3>✨ 基础特效</h3>
+            <div class="settingItem"><label>星空动画</label><label class="toggle"><input type="checkbox" id="toggleStars" onchange="toggleStars(this.checked)"><div class="track"></div><div class="thumb"></div></label></div>
+            <div class="settingItem"><label>按钮流光</label><label class="toggle"><input type="checkbox" id="toggleGlow" onchange="toggleGlow(this.checked)"><div class="track"></div><div class="thumb"></div></label></div>
+            <div class="settingItem"><label>玻璃拟态</label><label class="toggle"><input type="checkbox" id="toggleGlass" onchange="toggleGlass(this.checked)"><div class="track"></div><div class="thumb"></div></label></div>
+            <div class="settingItem"><label>🌿 数字矩阵</label><label class="toggle"><input type="checkbox" id="toggleMatrix" checked onchange="toggleMatrix(this.checked)"><div class="track"></div><div class="thumb"></div></label></div>
+        </div>
+        <div class="settingGroup"><h3>ℹ️ 信息</h3><div class="settingItem"><label>版本</label><span style="color:#666; font-size:13px;">v3.9.6</span></div></div>
+
+        <div class="settingGroup" style="margin-top: 30px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+            <button class="backToHomeBtn" onclick="backToHome()">🏠 返回最初界面</button>
+        </div>
+    </div>
+
+    <a id="haifangSiteBtn" href="https://icc.gt.tc/2010834" target="_blank" rel="noopener">
+        前往我的网站
+    </a>
+
+    <div class="toast" id="toast"></div>
+    <div class="lockTimer" id="lockTimer"></div>
+
+    <!-- 锁屏 -->
+    <div id="lockScreen">
+        <div class="lockCard">
+            <h2>🚀 刪川科技</h2>
+            <p class="subtitle">授权访问入口</p>
+            <div class="hint">🔑 1</div>
+            <p class="hiddenHint">· · ·</p>
+            <div class="inputWrap"><input type="password" id="passwordInput" placeholder="输入密码" onkeydown="if(event.key==='Enter') checkPassword()"></div>
+            <button class="enterBtn" id="mainEnterBtn" onclick="checkPassword()">进 入</button>
+            <p id="errorMsg"></p>
+        </div>
+    </div>
+
+    <!-- 主界面 -->
+    <div id="mainContent">
+        <div class="welcomeCard">
+            <div class="welcomeText" id="welcomeText">欢迎回来</div>
+            <div class="welcomeSub">刪川科技 · 授权用户</div>
+        </div>
+    </div>
+
+    <!-- 密码2 → 隐藏通道 -->
+    <div class="pageFull" id="pagePwd2">
+        <div class="page2Card">
+            <div class="pageIcon">🔒</div>
+            <h2>隐藏通道</h2>
+            <p class="pageDesc">所有账号管理（含密码查看与删除）</p>
+            <div class="channelPageBody" id="pagePwd2Body" style="padding:0;"></div>
+            <button class="pageBackBtn purple" onclick="backToLock()">返回初始页面</button>
+        </div>
+    </div>
+
+    <!-- 密码3 → 海方通道 -->
+    <div class="pageFull" id="pagePwd3">
+        <div class="page3Card">
+            <div class="pageIcon">🌊</div>
+            <h2>海方通道</h2>
+            <p class="pageDesc">专属空间 · 海方</p>
+            <p style="color:#555;font-size:13px;margin-bottom:20px;">当前暂无内容</p>
+            <button class="pageBackBtn gold" onclick="backToMain()">返回主页面</button>
+        </div>
+    </div>
+
+    <!-- 密码4 → 隐藏空间 -->
+    <div class="pageFull" id="pagePwd4">
+        <div class="page4Card">
+            <div class="pageIcon">🔴</div>
+            <h2>隐藏空间</h2>
+            <p class="pageDesc">受限访问 · 最高权限</p>
+            <p style="color:#444;font-size:13px;margin-bottom:20px;">当前暂无内容</p>
+            <button class="pageBackBtn red" onclick="backToMain()">返回主页面</button>
+        </div>
+    </div>
+
+    <script>
+        var isUnlocked = false;
+        var clickEffectType = 'ripple';
+        var solidModeActive = false;
+        var savedState = null;
+        var failCount = 0;
+        var lockUntil = 0;
+        var hiddenTime = 0;
+        var AUTO_LOCK_MS = 5 * 60 * 1000;
+        var VISIT_LOG_KEY = 'visitLogs';
+
+        var matrixActive = false;
+        var matrixCanvas = null;
+        var matrixCtx = null;
+        var matrixCols = [];
+        var matrixFontSize = 16;
+        var matrixChars = 'アイウエオカキクケコサシスセソタチツテトナニヌネノハヒフヘホマミムメモヤユヨラリルレロワヲン0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        var matrixAnimId = null;
+
+        // ===== 账号系统 =====
+        var currentAdminUser = null;
+
+        function getAccounts() {
+            try { return JSON.parse(localStorage.getItem('accounts') || '[]'); }
+            catch(e) { return []; }
+        }
+        function saveAccounts(accounts) {
+            localStorage.setItem('accounts', JSON.stringify(accounts));
+        }
+        function hashString(str) {
+            var hash = 0;
+            for (var i = 0; i < str.length; i++) {
+                hash = ((hash << 5) - hash) + str.charCodeAt(i);
+                hash |= 0;
+            }
+            return Math.abs(hash);
+        }
+        function getAvatarEmoji(seed) {
+            var emojis = ['😀','😎','🤓','🧐','🤠','👨‍💻','👩‍💻','🦊','🐱','🐶','🐼','🐨','🦁','🐯','🐸','🐵','🦄','🐲','🐳','🦋','🌟','🔥','💎','🎯','🚀','⚡','❄️','🌈','🎨','🎭'];
+            return emojis[seed % emojis.length];
+        }
+        function generateUid() {
+            var accounts = getAccounts();
+            return 'SC-' + String(accounts.length + 1).padStart(3, '0');
+        }
+        function formatTime(ts) {
+            var d = new Date(ts);
+            return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0') + ' ' + String(d.getHours()).padStart(2,'0') + ':' + String(d.getMinutes()).padStart(2,'0');
+        }
+        function esc(str) {
+            return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        }
+
+        function registerAccount(username, password) {
+            var accounts = getAccounts();
+            if (accounts.find(function(a) { return a.username === username; })) {
+                return { success: false, msg: '❌ 账号已存在' };
+            }
+            var seed = hashString(username);
+            var newAccount = {
+                username: username,
+                password: password,
+                avatarSeed: seed,
+                uid: generateUid(),
+                regTime: Date.now()
+            };
+            accounts.push(newAccount);
+            saveAccounts(accounts);
+            return { success: true, account: newAccount };
+        }
+
+        function loginAccount(username, password) {
+            var accounts = getAccounts();
+            var found = accounts.find(function(a) { return a.username === username && a.password === password; });
+            if (found) return { success: true, account: found };
+            return { success: false, msg: '❌ 账号或密码错误' };
+        }
+
+        function deleteAccount(username) {
+            var accounts = getAccounts();
+            accounts = accounts.filter(function(a) { return a.username !== username; });
+            saveAccounts(accounts);
+        }
+
+        // ===== 密码2页面渲染（隐藏通道） =====
+        function renderHiddenToPagePwd2() {
+            var container = document.getElementById('pagePwd2Body');
+            var accounts = getAccounts();
+
+            if (accounts.length === 0) {
+                container.innerHTML = '<p style="color:#444;font-size:13px;margin-top:20px;">暂无注册账号</p>';
+                return;
+            }
+
+            var html = '<div class="accountList" style="margin-top:10px;">';
+            for (var i = 0; i < accounts.length; i++) {
+                var a = accounts[i];
+                html += '<div class="accountItem" onclick="viewAccountProfileInPage2(\'' + esc(a.username) + '\')">' +
+                    '<div class="accountAvatar">' + getAvatarEmoji(a.avatarSeed) + '</div>' +
+                    '<div class="accountInfo">' +
+                    '<div class="accountName">' + esc(a.username) + '</div>' +
+                    '<div class="accountUid">' + esc(a.uid) + '</div>' +
+                    '<div class="accountTime">' + formatTime(a.regTime) + '</div>' +
+                    '</div>' +
+                    '<div class="accountPwd" onclick="event.stopPropagation()">🔑 ' + esc(a.password) + '</div>' +
+                    '<button class="accountDeleteBtn" onclick="event.stopPropagation();deleteAccountAndRefreshPwd2(\'' + esc(a.username) + '\')">删除</button>' +
+                    '</div>';
+            }
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        function viewAccountProfileInPage2(username) {
+            var accounts = getAccounts();
+            var a = accounts.find(function(x) { return x.username === username; });
+            if (!a) return;
+            var container = document.getElementById('pagePwd2Body');
+            container.innerHTML = '<div class="profileCard" style="margin:20px auto;">' +
+                '<div class="profileAvatar">' + getAvatarEmoji(a.avatarSeed) + '</div>' +
+                '<div class="profileName">' + esc(a.username) + '</div>' +
+                '<div class="profileUid">' + esc(a.uid) + '</div>' +
+                '<div class="profileTime">注册于 ' + formatTime(a.regTime) + '</div>' +
+                '<div style="margin-top:16px; padding:12px; background:rgba(255,255,255,0.04); border-radius:10px; border:1px solid rgba(255,255,255,0.08);">' +
+                    '<div style="font-size:11px; color:#666; margin-bottom:4px;">密码</div>' +
+                    '<div style="font-size:14px; color:#ff6b6b; font-family:monospace; letter-spacing:2px;">' + esc(a.password) + '</div>' +
+                '</div>' +
+                '<div class="profileActions" style="margin-top:20px;">' +
+                '<button onclick="renderHiddenToPagePwd2()">← 返回列表</button>' +
+                '</div></div>';
+        }
+
+        function deleteAccountAndRefreshPwd2(username) {
+            if (!confirm('确定删除账号 "' + username + '" 吗？此操作不可恢复。')) return;
+            deleteAccount(username);
+            if (currentAdminUser && currentAdminUser.username === username) {
+                currentAdminUser = null;
+            }
+            showToast('🗑️ 账号已删除');
+            renderHiddenToPagePwd2();
+        }
+
+        // ===== 管理通道页面渲染 =====
+        function renderAdminChannel() {
+            var body = document.getElementById('adminChannelBody');
+            if (currentAdminUser) {
+                var accounts = getAccounts();
+                var html = '<div class="channelContentView"><div class="profileCard" style="margin-bottom:24px;">' +
+                    '<div class="profileAvatar">' + getAvatarEmoji(currentAdminUser.avatarSeed) + '</div>' +
+                    '<div class="profileName">' + currentAdminUser.username + '</div>' +
+                    '<div class="profileUid">' + currentAdminUser.uid + '</div>' +
+                    '<div class="profileTime">注册于 ' + formatTime(currentAdminUser.regTime) + '</div>' +
+                    '<div class="profileActions">' +
+                    '<button onclick="adminLogout()">退出登录</button>' +
+                    '</div></div>' +
+                    '<p class="loggedInHint">已注册管理员账号（' + accounts.length + ' 个）</p>' +
+                    '<div class="accountList">';
+                for (var i = 0; i < accounts.length; i++) {
+                    var a = accounts[i];
+                    html += '<div class="accountItem">' +
+                        '<div class="accountAvatar">' + getAvatarEmoji(a.avatarSeed) + '</div>' +
+                        '<div class="accountInfo">' +
+                        '<div class="accountName">' + a.username + '</div>' +
+                        '<div class="accountUid">' + a.uid + '</div>' +
+                        '<div class="accountTime">' + formatTime(a.regTime) + '</div>' +
+                        '</div></div>';
+                }
+                html += '</div></div>';
+                body.innerHTML = html;
+            } else {
+                body.innerHTML = '<div class="channelContentView">' +
+                    '<h3 style="color:#8fa8ff;">管理通道</h3>' +
+                    '<p style="color:#555;">管理员注册与登录</p>' +
+                    '<div class="authTabs">' +
+                    '<button class="authTab active" id="adminLoginTab" onclick="switchAdminTab(\'login\')">登录</button>' +
+                    '<button class="authTab" id="adminRegTab" onclick="switchAdminTab(\'register\')">注册</button>' +
+                    '</div>' +
+                    '<div id="adminAuthArea"></div></div>';
+                renderAdminLoginForm();
+            }
+        }
+
+        function switchAdminTab(tab) {
+            document.getElementById('adminLoginTab').classList.toggle('active', tab === 'login');
+            document.getElementById('adminRegTab').classList.toggle('active', tab === 'register');
+            if (tab === 'login') renderAdminLoginForm();
+            else renderAdminRegisterForm();
+        }
+
+        function renderAdminLoginForm() {
+            document.getElementById('adminAuthArea').innerHTML = '<div class="authForm">' +
+                '<input type="text" id="adminLoginUser" placeholder="管理员账号" onkeydown="if(event.key===\'Enter\') doAdminLogin()">' +
+                '<input type="password" id="adminLoginPwd" placeholder="密码" onkeydown="if(event.key===\'Enter\') doAdminLogin()">' +
+                '<button onclick="doAdminLogin()">登 录</button>' +
+                '<p class="authError" id="adminAuthError"></p></div>';
+        }
+
+        function renderAdminRegisterForm() {
+            document.getElementById('adminAuthArea').innerHTML = '<div class="authForm">' +
+                '<input type="text" id="adminRegUser" placeholder="注册账号" onkeydown="if(event.key===\'Enter\') doAdminRegister()">' +
+                '<input type="password" id="adminRegPwd" placeholder="设置密码" onkeydown="if(event.key===\'Enter\') doAdminRegister()">' +
+                '<button onclick="doAdminRegister()">注 册</button>' +
+                '<p class="authError" id="adminAuthError"></p></div>';
+        }
+
+        function doAdminLogin() {
+            var u = document.getElementById('adminLoginUser').value.trim();
+            var p = document.getElementById('adminLoginPwd').value;
+            var result = loginAccount(u, p);
+            if (result.success) {
+                currentAdminUser = result.account;
+                showToast('✅ 管理员登录成功');
+                renderAdminChannel();
+            } else {
+                document.getElementById('adminAuthError').innerText = result.msg;
+            }
+        }
+
+        function doAdminRegister() {
+            var u = document.getElementById('adminRegUser').value.trim();
+            var p = document.getElementById('adminRegPwd').value;
+            if (!u || !p) { document.getElementById('adminAuthError').innerText = '❌ 账号和密码不能为空'; return; }
+            if (u.length < 2) { document.getElementById('adminAuthError').innerText = '❌ 账号至少2个字符'; return; }
+            if (p.length < 4) { document.getElementById('adminAuthError').innerText = '❌ 密码至少4个字符'; return; }
+            var result = registerAccount(u, p);
+            if (result.success) {
+                currentAdminUser = result.account;
+                showToast('✅ 注册成功，已自动登录');
+                renderAdminChannel();
+            } else {
+                document.getElementById('adminAuthError').innerText = result.msg;
+            }
+        }
+
+        function adminLogout() {
+            currentAdminUser = null;
+            showToast('👋 已退出登录');
+            renderAdminChannel();
+        }
+
+        // ===== 隐藏通道页面渲染（顶部按钮进入的） =====
+        function renderHiddenChannel() {
+            var body = document.getElementById('hiddenChannelBody');
+            var accounts = getAccounts();
+            var html = '<div class="channelContentView"><h3 style="color:#ff6b6b;">隐藏通道</h3><p style="color:#555;">所有账号管理（含密码查看与删除）</p>';
+            if (accounts.length === 0) {
+                html += '<p style="color:#444;font-size:13px;margin-top:20px;">暂无注册账号</p>';
+            } else {
+                html += '<div class="accountList">';
+                for (var i = 0; i < accounts.length; i++) {
+                    var a = accounts[i];
+                    html += '<div class="accountItem" onclick="viewAccountProfile(\'' + esc(a.username) + '\')">' +
+                        '<div class="accountAvatar">' + getAvatarEmoji(a.avatarSeed) + '</div>' +
+                        '<div class="accountInfo">' +
+                        '<div class="accountName">' + esc(a.username) + '</div>' +
+                        '<div class="accountUid">' + esc(a.uid) + '</div>' +
+                        '<div class="accountTime">' + formatTime(a.regTime) + '</div>' +
+                        '</div>' +
+                        '<div class="accountPwd" onclick="event.stopPropagation()">🔑 ' + esc(a.password) + '</div>' +
+                        '<button class="accountDeleteBtn" onclick="event.stopPropagation();deleteAccountAndRefresh(\'' + esc(a.username) + '\')">删除</button>' +
+                        '</div>';
+                }
+                html += '</div>';
+            }
+            html += '</div>';
+            body.innerHTML = html;
+        }
+
+        function viewAccountProfile(username) {
+            var accounts = getAccounts();
+            var a = accounts.find(function(x) { return x.username === username; });
+            if (!a) return;
+            var body = document.getElementById('hiddenChannelBody');
+            body.innerHTML = '<div class="channelContentView">' +
+                '<div class="profileCard" style="margin-bottom:24px;">' +
+                '<div class="profileAvatar">' + getAvatarEmoji(a.avatarSeed) + '</div>' +
+                '<div class="profileName">' + esc(a.username) + '</div>' +
+                '<div class="profileUid">' + esc(a.uid) + '</div>' +
+                '<div class="profileTime">注册于 ' + formatTime(a.regTime) + '</div>' +
+                '<div class="profileActions">' +
+                '<button onclick="renderHiddenChannel()">← 返回列表</button>' +
+                '</div></div></div>';
+        }
+
+        function deleteAccountAndRefresh(username) {
+            if (!confirm('确定删除账号 "' + username + '" 吗？此操作不可恢复。')) return;
+            deleteAccount(username);
+            if (currentAdminUser && currentAdminUser.username === username) {
+                currentAdminUser = null;
+            }
+            showToast('🗑️ 账号已删除');
+            renderHiddenChannel();
+        }
+
+        // ===== 矩阵 =====
+        function initMatrix() {
+            matrixCanvas = document.getElementById('matrixCanvas');
+            matrixCtx = matrixCanvas.getContext('2d');
+            resizeMatrix();
+        }
+        function resizeMatrix() {
+            if (!matrixCanvas) return;
+            matrixCanvas.width = window.innerWidth; matrixCanvas.height = window.innerHeight;
+            var cols = Math.floor(matrixCanvas.width / matrixFontSize);
+            matrixCols = [];
+            for (var i = 0; i < cols; i++) matrixCols[i] = Math.random() * matrixCanvas.height / matrixFontSize;
+        }
+        function startMatrix() {
+            if (matrixAnimId) return;
+            resizeMatrix();
+            function drawMatrix() {
+                if (!matrixActive) { matrixAnimId = null; return; }
+                matrixCtx.fillStyle = 'rgba(0, 0, 0, 0.05)';
+                matrixCtx.fillRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+                matrixCtx.font = matrixFontSize + 'px monospace';
+                for (var i = 0; i < matrixCols.length; i++) {
+                    var char = matrixChars[Math.floor(Math.random() * matrixChars.length)];
+                    matrixCtx.fillStyle = '#0f0'; matrixCtx.globalAlpha = 1;
+                    matrixCtx.fillText(char, i * matrixFontSize, matrixCols[i] * matrixFontSize);
+                    if (Math.random() > 0.95) {
+                        matrixCtx.fillStyle = '#0f0'; matrixCtx.globalAlpha = 0.8;
+                        matrixCtx.fillText(char, i * matrixFontSize, matrixCols[i] * matrixFontSize);
+                    }
+                    matrixCtx.globalAlpha = 1; matrixCols[i]++;
+                    if (matrixCols[i] * matrixFontSize > matrixCanvas.height && Math.random() > 0.975) matrixCols[i] = 0;
+                }
+                matrixAnimId = requestAnimationFrame(drawMatrix);
+            }
+            drawMatrix();
+        }
+        function stopMatrix() {
+            matrixActive = false;
+            if (matrixAnimId) { cancelAnimationFrame(matrixAnimId); matrixAnimId = null; }
+            if (matrixCtx) matrixCtx.clearRect(0, 0, matrixCanvas.width, matrixCanvas.height);
+            matrixCanvas.classList.remove('active');
+        }
+        function toggleMatrix(on) {
+            if (!isUnlocked && !on) return;
+            if (on) {
+                matrixActive = true; matrixCanvas.classList.add('active'); startMatrix();
+                changeSeason('none', true);
+                document.getElementById('seasonSelect').value = 'none';
+                document.getElementById('seasonSelect').disabled = true;
+                localStorage.setItem('matrixOn', 'true');
+            } else {
+                stopMatrix(); document.getElementById('seasonSelect').disabled = false;
+                localStorage.setItem('matrixOn', 'false');
+            }
+        }
+
+        function getGreeting() {
+            var h = new Date().getHours();
+            if (h < 6) return '夜深了';
+            if (h < 9) return '早上好';
+            if (h < 12) return '上午好';
+            if (h < 14) return '中午好';
+            if (h < 18) return '下午好';
+            if (h < 22) return '晚上好';
+            return '夜深了';
+        }
+
+        window.addEventListener('load', function() {
+            initMatrix();
+            document.getElementById('passwordInput').value = '';
+            document.getElementById('passwordInput').focus();
+
+            document.getElementById('toggleMatrix').checked = true;
+            matrixActive = true;
+            matrixCanvas.classList.add('active');
+            startMatrix();
+            document.getElementById('seasonSelect').disabled = true;
+            localStorage.setItem('matrixOn', 'true');
+
+            if (sessionStorage.getItem('unlocked') === 'true') {
+                var currentPage = sessionStorage.getItem('currentPage') || 'mainContent';
+                hideAllPages();
+                if (currentPage === 'pagePwd2') { document.getElementById('pagePwd2').classList.add('active'); renderHiddenToPagePwd2(); }
+                else if (currentPage === 'pagePwd3') document.getElementById('pagePwd3').classList.add('active');
+                else if (currentPage === 'pagePwd4') document.getElementById('pagePwd4').classList.add('active');
+                else if (currentPage === 'adminChannelPage') { document.getElementById('adminChannelPage').classList.add('active'); renderAdminChannel(); }
+                else if (currentPage === 'hiddenChannelPage') { document.getElementById('hiddenChannelPage').classList.add('active'); renderHiddenChannel(); }
+                else { document.getElementById('mainContent').style.display = 'flex'; document.getElementById('topBarEl').classList.add('unlocked'); document.getElementById('recommendBanner').classList.add('unlocked'); }
+                isUnlocked = true; document.body.classList.remove('locked');
+                document.getElementById('welcomeText').innerText = getGreeting();
+            }
+        });
+
+        window.addEventListener('resize', function() { if (matrixActive) resizeMatrix(); });
+        document.addEventListener('visibilitychange', function() {
+            if (document.hidden && isUnlocked) hiddenTime = Date.now();
+            else if (!document.hidden && isUnlocked && hiddenTime > 0) {
+                if (Date.now() - hiddenTime > AUTO_LOCK_MS) { showToast('⏰ 长时间未操作，已自动锁定', '#ffa502'); backToLock(); }
+                hiddenTime = 0;
+            }
+        });
+
+        // ===== 核心改动：新增 silentUnlock =====
+        function unlock() { isUnlocked = true; document.body.classList.remove('locked'); document.getElementById('topBarEl').classList.add('unlocked'); document.getElementById('recommendBanner').classList.add('unlocked'); sessionStorage.setItem('unlocked', 'true'); }
+        function silentUnlock() { isUnlocked = true; document.body.classList.remove('locked'); sessionStorage.setItem('unlocked', 'true'); }
+        function lock() { isUnlocked = false; document.body.classList.add('locked'); document.getElementById('topBarEl').classList.remove('unlocked'); document.getElementById('recommendBanner').classList.remove('unlocked'); sessionStorage.removeItem('unlocked'); sessionStorage.removeItem('currentPage'); }
+
+        function openSettings() { if (!isUnlocked) return; document.getElementById('settingsPanel').classList.add('active'); document.getElementById('settingsOverlay').classList.add('active'); }
+        function closeSettings() { document.getElementById('settingsPanel').classList.remove('active'); document.getElementById('settingsOverlay').classList.remove('active'); }
+        function backToHome() { closeSettings(); backToLock(); }
+
+        function openHaifangModal() {
+            if (!isUnlocked) return;
+            document.getElementById('haifangModal').classList.add('active');
+            document.getElementById('haifangModalPwd').value = '';
+            document.getElementById('haifangModalError').innerText = '';
+            setTimeout(function(){ document.getElementById('haifangModalPwd').focus(); }, 100);
+        }
+        function closeHaifangModal() {
+            document.getElementById('haifangModal').classList.remove('active');
+            document.getElementById('haifangModalPwd').value = '';
+            document.getElementById('haifangModalError').innerText = '';
+        }
+        function verifyHaifangModal() {
+            var pwd = document.getElementById('haifangModalPwd').value;
+            if (pwd === '4') {
+                closeHaifangModal();
+                hideAllPages();
+                document.getElementById('haifangChannelPage').classList.add('active');
+                document.getElementById('haifangSiteBtn').style.display = 'block';
+                sessionStorage.setItem('currentPage', 'haifangChannelPage');
+            } else {
+                document.getElementById('haifangModalError').innerText = '❌ 密码错误';
+                document.getElementById('haifangModalPwd').value = '';
+                document.getElementById('haifangModalPwd').focus();
+                var card = document.querySelector('#haifangModal .channelModalCard');
+                card.classList.add('shake');
+                setTimeout(function(){ card.classList.remove('shake'); }, 400);
+            }
+        }
+
+        function openAdminModal() {
+            if (!isUnlocked) return;
+            document.getElementById('adminModal').classList.add('active');
+            document.getElementById('adminModalPwd').value = '';
+            document.getElementById('adminModalError').innerText = '';
+            setTimeout(function(){ document.getElementById('adminModalPwd').focus(); }, 100);
+        }
+        function closeAdminModal() {
+            document.getElementById('adminModal').classList.remove('active');
+            document.getElementById('adminModalPwd').value = '';
+            document.getElementById('adminModalError').innerText = '';
+        }
+        function verifyAdminModal() {
+            var pwd = document.getElementById('adminModalPwd').value;
+            if (pwd === '3') {
+                closeAdminModal();
+                hideAllPages();
+                document.getElementById('adminChannelPage').classList.add('active');
+                renderAdminChannel();
+                sessionStorage.setItem('currentPage', 'adminChannelPage');
+            } else {
+                document.getElementById('adminModalError').innerText = '❌ 密码错误';
+                document.getElementById('adminModalPwd').value = '';
+                document.getElementById('adminModalPwd').focus();
+                var card = document.querySelector('#adminModal .channelModalCard');
+                card.classList.add('shake');
+                setTimeout(function(){ card.classList.remove('shake'); }, 400);
+            }
+        }
+
+        function openHiddenChannel() {
+            if (!isUnlocked) return;
+            hideAllPages();
+            document.getElementById('hiddenChannelPage').classList.add('active');
+            renderHiddenChannel();
+            sessionStorage.setItem('currentPage', 'hiddenChannelPage');
+        }
+        function closeHiddenChannel() { document.getElementById('hiddenChannelPage').classList.remove('active'); document.getElementById('mainContent').style.display = 'flex'; document.getElementById('topBarEl').classList.add('unlocked'); document.getElementById('recommendBanner').classList.add('unlocked'); sessionStorage.setItem('currentPage', 'mainContent'); }
+        function closeHaifangChannel() { document.getElementById('haifangChannelPage').classList.remove('active'); document.getElementById('haifangSiteBtn').style.display = 'none'; document.getElementById('mainContent').style.display = 'flex'; document.getElementById('topBarEl').classList.add('unlocked'); document.getElementById('recommendBanner').classList.add('unlocked'); sessionStorage.setItem('currentPage', 'mainContent'); }
+        function closeAdminChannel() { document.getElementById('adminChannelPage').classList.remove('active'); document.getElementById('mainContent').style.display = 'flex'; document.getElementById('topBarEl').classList.add('unlocked'); document.getElementById('recommendBanner').classList.add('unlocked'); currentAdminUser = null; sessionStorage.setItem('currentPage', 'mainContent'); }
+
+        function toggleSolidMode(on) {
+            if (!isUnlocked) return;
+            if (on) {
+                solidModeActive = true; document.body.classList.add('solid-mode', 'bg-solid');
+                savedState = { bg: document.getElementById('bgSelect').value, season: document.getElementById('seasonSelect').value, starsOn: document.getElementById('toggleStars').checked, glowOn: document.getElementById('toggleGlow').checked, glassOn: document.getElementById('toggleGlass').checked };
+                changeSeason('none', true); document.getElementById('seasonSelect').value = 'none';
+                document.getElementById('toggleStars').checked = false; toggleStars(false);
+                document.getElementById('toggleGlow').checked = false; toggleGlow(false);
+                document.getElementById('toggleGlass').checked = false; toggleGlass(false);
+                document.getElementById('bgSelect').disabled = true;
+                localStorage.setItem('solidMode', 'true');
+            } else {
+                solidModeActive = false; document.body.classList.remove('solid-mode', 'bg-solid');
+                if (savedState) {
+                    if (savedState.bg) { document.getElementById('bgSelect').value = savedState.bg; changeBg(savedState.bg, true); }
+                    if (savedState.season && savedState.season !== 'none') { document.getElementById('seasonSelect').value = savedState.season; changeSeason(savedState.season, true); }
+                    document.getElementById('toggleStars').checked = savedState.starsOn; toggleStars(savedState.starsOn);
+                    document.getElementById('toggleGlow').checked = savedState.glowOn; toggleGlow(savedState.glowOn);
+                    document.getElementById('toggleGlass').checked = savedState.glassOn; toggleGlass(savedState.glassOn);
+                }
+                document.getElementById('bgSelect').disabled = false;
+                localStorage.setItem('solidMode', 'false'); savedState = null;
+            }
+        }
+
+        function changeBg(val, fromLoad) {
+            if (!fromLoad && !isUnlocked) return;
+            document.body.classList.remove('bg-solid','bg-gradient','bg-purple','bg-aurora','bg-cyber','bg-ocean','bg-fire');
+            if (val === 'solid') document.body.classList.add('bg-solid'); else document.body.classList.add('bg-' + val);
+            if (!fromLoad) localStorage.setItem('bgStyle', val);
+        }
+
+        var seasonTimer = null;
+        function changeSeason(val, fromLoad) {
+            if (matrixActive) { val = 'none'; }
+            if (!fromLoad && !isUnlocked) return;
+            if (!fromLoad) localStorage.setItem('season', val);
+            var container = document.getElementById('seasonContainer'); container.innerHTML = '';
+            if (seasonTimer) { clearInterval(seasonTimer); seasonTimer = null; }
+            if (val === 'none') return;
+            var configs = { spring:{emoji:'🌸',count:3,duration:8000,size:14}, summer:{emoji:'✨',count:2,duration:6000,size:10}, autumn:{emoji:'🍁',count:3,duration:10000,size:16}, winter:{emoji:'❄️',count:4,duration:12000,size:12} };
+            var cfg = configs[val];
+            function spawn() {
+                for (var i = 0; i < cfg.count; i++) {
+                    var p = document.createElement('div'); p.className = 'season-particle'; p.innerText = cfg.emoji;
+                    p.style.left = Math.random() * 100 + '%'; p.style.fontSize = cfg.size + Math.random() * 8 + 'px';
+                    p.style.animationDuration = cfg.duration/1000 + Math.random()*5 + 's'; p.style.opacity = 0.4 + Math.random()*0.4;
+                    container.appendChild(p); setTimeout((function(el){return function(){if(el.parentNode)el.parentNode.removeChild(el);};})(p), cfg.duration+5000);
+                }
+            }
+            spawn(); seasonTimer = setInterval(spawn, 800);
+        }
+
+        function changeClickEffect(val, fromLoad) { if (!fromLoad && !isUnlocked) return; clickEffectType = val; localStorage.setItem('clickEffect', val); }
+
+        var settingsPanelEl = null, topBarEl = null, recommendBannerEl = null;
+        function initClickEffect() {
+            settingsPanelEl = document.getElementById('settingsPanel'); topBarEl = document.getElementById('topBarEl'); recommendBannerEl = document.getElementById('recommendBanner');
+            document.addEventListener('pointerdown', function(e) { if (!isUnlocked || clickEffectType === 'none') return; if (settingsPanelEl.contains(e.target) || topBarEl.contains(e.target) || recommendBannerEl.contains(e.target)) return; fireClickEffect(e.clientX, e.clientY); }, { passive: true });
+            document.addEventListener('click', function(e) { if (!isUnlocked || clickEffectType === 'none') return; if (settingsPanelEl.contains(e.target) || topBarEl.contains(e.target) || recommendBannerEl.contains(e.target)) return; if (window._lastClickEffectTime && Date.now() - window._lastClickEffectTime < 150) return; fireClickEffect(e.clientX, e.clientY); }, { passive: true });
+        }
+        function fireClickEffect(x, y) {
+            window._lastClickEffectTime = Date.now();
+            if (clickEffectType === 'ripple') {
+                var r = document.createElement('div'); r.className = 'click-ripple'; r.style.width = '30px'; r.style.height = '30px'; r.style.left = (x - 15) + 'px'; r.style.top = (y - 15) + 'px'; r.style.border = '2px solid rgba(0,123,255,0.6)'; document.body.appendChild(r); setTimeout(function(){ if(r.parentNode) r.parentNode.removeChild(r); }, 700);
+            } else if (clickEffectType === 'particle') {
+                var colors = ['#007bff','#ff4757','#00ff88','#ffa502','#ff6bff','#00ffff'];
+                for (var i = 0; i < 8; i++) { var p = document.createElement('div'); p.className = 'click-particle'; var angle = (Math.PI * 2 / 8) * i, dist = 30 + Math.random() * 40; p.style.left = x + 'px'; p.style.top = y + 'px'; p.style.width = '6px'; p.style.height = '6px'; p.style.background = colors[i % colors.length]; p.style.borderRadius = '50%'; p.style.setProperty('--tx', Math.cos(angle) * dist + 'px'); p.style.setProperty('--ty', Math.sin(angle) * dist + 'px'); document.body.appendChild(p); setTimeout(function(el){ return function(){ if(el.parentNode) el.parentNode.removeChild(el); }; }(p), 800); }
+            } else if (clickEffectType === 'heart') {
+                var h = document.createElement('div'); h.className = 'click-heart'; h.innerText = '❤️'; h.style.left = (x - 10) + 'px'; h.style.top = (y - 10) + 'px'; h.style.fontSize = '20px'; document.body.appendChild(h); setTimeout(function(){ if(h.parentNode) h.parentNode.removeChild(h); }, 1000);
+            } else if (clickEffectType === 'firework') {
+                var colors = ['#ff4757','#ffa502','#2ed573','#1e90ff','#ff6bff'];
+                for (var i = 0; i < 12; i++) { var fw = document.createElement('div'); fw.className = 'click-firework'; var angle = (Math.PI * 2 / 12) * i, dist = 40 + Math.random() * 50; fw.style.left = (x + Math.cos(angle) * dist - 3) + 'px'; fw.style.top = (y + Math.sin(angle) * dist - 3) + 'px'; fw.style.width = '6px'; fw.style.height = '6px'; fw.style.background = colors[i % colors.length]; fw.style.boxShadow = '0 0 6px ' + colors[i % colors.length]; document.body.appendChild(fw); setTimeout(function(el){ return function(){ if(el.parentNode) el.parentNode.removeChild(el); }; }(fw), 900); }
+            }
+        }
+
+        var silkCanvas = document.getElementById('silkCanvas'); var silkCtx = silkCanvas.getContext('2d'); var silkPoints = []; var silkMaxAge = 60, silkThickness = 3;
+        function resizeSilkCanvas() { silkCanvas.width = window.innerWidth; silkCanvas.height = window.innerHeight; }
+        window.addEventListener('resize', resizeSilkCanvas); resizeSilkCanvas();
+        function drawSilk() {
+            if (!isUnlocked) { silkCtx.clearRect(0,0,silkCanvas.width,silkCanvas.height); silkPoints = []; requestAnimationFrame(drawSilk); return; }
+            silkCtx.clearRect(0, 0, silkCanvas.width, silkCanvas.height);
+            for (var i = silkPoints.length - 1; i >= 0; i--) { silkPoints[i].age++; if (silkPoints[i].age > silkMaxAge) silkPoints.splice(i, 1); }
+            if (silkPoints.length < 2) { requestAnimationFrame(drawSilk); return; }
+            silkCtx.lineCap = 'round'; silkCtx.lineJoin = 'round';
+            for (var i = 0; i < silkPoints.length - 1; i++) { var p1 = silkPoints[i], p2 = silkPoints[i + 1]; var life = 1 - (p1.age / silkMaxAge); silkCtx.beginPath(); silkCtx.moveTo(p1.x, p1.y); silkCtx.lineTo(p2.x, p2.y); silkCtx.strokeStyle = p1.color; silkCtx.globalAlpha = life * 0.8; silkCtx.lineWidth = silkThickness * life; silkCtx.stroke(); }
+            silkCtx.globalAlpha = 1; requestAnimationFrame(drawSilk);
+        }
+        drawSilk();
+
+        var touchTrailStyle = 'silk'; var touchColors = ['#007bff','#ff4757','#00ff88','#ffa502','#ff6bff','#00ffff','#ffb432','#a855f7','#10b981'];
+        function changeTouchTrailStyle(val, fromLoad) { if (!fromLoad && !isUnlocked) return; touchTrailStyle = val; localStorage.setItem('touchTrailStyle', val); }
+        document.addEventListener('touchmove', function(e) {
+            if (!isUnlocked || touchTrailStyle === 'none') return;
+            if (touchTrailStyle === 'silk') { var touch = e.touches[0]; if (!touch) return; silkPoints.push({ x: touch.clientX, y: touch.clientY, age: 0, color: touchColors[Math.floor(Math.random() * touchColors.length)] }); if (silkPoints.length > 80) silkPoints.shift(); return; }
+            if (touchTrailStyle === 'dot') { var touch = e.touches[0]; if (!touch) return; var dot = document.createElement('div'); dot.className = 'touch-dot'; dot.style.width = '8px'; dot.style.height = '8px'; dot.style.left = (touch.clientX - 4) + 'px'; dot.style.top = (touch.clientY - 4) + 'px'; dot.style.background = touchColors[Math.floor(Math.random() * touchColors.length)]; document.body.appendChild(dot); setTimeout(function(){ if(dot.parentNode) dot.parentNode.removeChild(dot); }, 700); }
+        }, { passive: true });
+        document.addEventListener('touchend', function() { if (touchTrailStyle === 'silk') { silkMaxAge = 15; setTimeout(function() { silkMaxAge = 60; }, 300); } });
+
+        function toggleStars(on) { if(!on)document.body.classList.add('stars-off');else document.body.classList.remove('stars-off'); localStorage.setItem('starsOn',on); }
+        function toggleGlow(on) { var btn=document.getElementById('mainEnterBtn'); if(!on)btn.classList.add('glow-off');else btn.classList.remove('glow-off'); localStorage.setItem('glowOn',on); }
+        function toggleGlass(on) { localStorage.setItem('glassOn',on); }
+
+        function loadSettings() {
+            if (localStorage.getItem('matrixOn') !== 'false') {
+                document.getElementById('toggleMatrix').checked = true;
+            }
+            if (localStorage.getItem('starsOn') !== 'true') {
+                document.getElementById('toggleStars').checked = false;
+                document.body.classList.add('stars-off');
+            } else {
+                document.getElementById('toggleStars').checked = true;
+                document.body.classList.remove('stars-off');
+            }
+            if (localStorage.getItem('glowOn') !== 'true') {
+                document.getElementById('toggleGlow').checked = false;
+                document.getElementById('mainEnterBtn').classList.add('glow-off');
+            } else {
+                document.getElementById('toggleGlow').checked = true;
+                document.getElementById('mainEnterBtn').classList.remove('glow-off');
+            }
+            if (localStorage.getItem('glassOn') !== 'true') {
+                document.getElementById('toggleGlass').checked = false;
+            } else {
+                document.getElementById('toggleGlass').checked = true;
+            }
+
+            var solidSaved = localStorage.getItem('solidMode');
+            if (solidSaved === 'true') {
+                solidModeActive = true; document.getElementById('solidModeToggle').checked = true; document.body.classList.add('solid-mode', 'bg-solid');
+                document.getElementById('bgSelect').disabled = true; document.body.classList.add('stars-off');
+                document.getElementById('toggleStars').checked = false; document.getElementById('toggleGlow').checked = false; document.getElementById('toggleGlass').checked = false;
+                document.getElementById('seasonSelect').value = 'none';
+            } else {
+                var bg = localStorage.getItem('bgStyle') || 'stars'; document.getElementById('bgSelect').value = bg; if (bg !== 'solid') changeBg(bg, true);
+            }
+            if (localStorage.getItem('matrixOn') !== 'false') {
+                changeSeason('none', true);
+                document.getElementById('seasonSelect').value = 'none';
+                document.getElementById('seasonSelect').disabled = true;
+            } else {
+                var s = localStorage.getItem('season') || 'none'; document.getElementById('seasonSelect').value = s; if(s!=='none' && !solidModeActive) changeSeason(s, true);
+            }
+            var ce = localStorage.getItem('clickEffect') || 'ripple'; document.getElementById('clickEffectSelect').value = ce; clickEffectType = ce;
+            var ttStyle = localStorage.getItem('touchTrailStyle') || 'silk'; document.getElementById('touchTrailSelect').value = ttStyle; touchTrailStyle = ttStyle;
+        }
+        loadSettings(); initClickEffect();
+
+        var toastTimer = null;
+        function showToast(msg, color) {
+            var toast = document.getElementById('toast'); toast.innerText = msg; toast.style.borderColor = color || '#00ff88'; toast.style.color = color || '#00ff88'; toast.classList.add('show');
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(function() { toast.classList.remove('show'); }, 2500);
+        }
+
+        function recordVisit() {
+            var logs = JSON.parse(localStorage.getItem(VISIT_LOG_KEY) || '[]');
+            var now = new Date();
+            logs.push({ time: now.toLocaleString('zh-CN'), ua: navigator.userAgent.substring(0, 80), screen: screen.width + '×' + screen.height, lang: navigator.language });
+            if (logs.length > 50) logs = logs.slice(-50);
+            localStorage.setItem(VISIT_LOG_KEY, JSON.stringify(logs));
+        }
+
+        function hideAllPages() {
+            document.getElementById('lockScreen').style.display = 'none';
+            document.getElementById('mainContent').style.display = 'none';
+            document.getElementById('pagePwd2').classList.remove('active');
+            document.getElementById('pagePwd3').classList.remove('active');
+            document.getElementById('pagePwd4').classList.remove('active');
+            document.getElementById('adminChannelPage').classList.remove('active');
+            document.getElementById('haifangChannelPage').classList.remove('active');
+            document.getElementById('hiddenChannelPage').classList.remove('active');
+            document.getElementById('topBarEl').classList.remove('unlocked');
+            document.getElementById('recommendBanner').classList.remove('unlocked');
+            document.getElementById('haifangSiteBtn').style.display = 'none';
+        }
+
+        function checkPassword() {
+            var now = Date.now();
+            if (lockUntil > now) { document.getElementById('errorMsg').innerText = '⏳ 请等待 ' + Math.ceil((lockUntil - now) / 1000) + ' 秒后重试'; return; }
+            var pwd = document.getElementById('passwordInput').value;
+            hideAllPages();
+            if (pwd === '1') {
+                recordVisit(); var lockEl = document.getElementById('lockScreen'); lockEl.classList.add('fade-out');
+                setTimeout(function() { lockEl.classList.remove('fade-out'); document.getElementById('mainContent').style.display = 'flex'; document.getElementById('topBarEl').classList.add('unlocked'); document.getElementById('recommendBanner').classList.add('unlocked'); unlock(); sessionStorage.setItem('currentPage', 'mainContent'); showToast('✅ 解锁成功'); failCount = 0; document.getElementById('welcomeText').innerText = getGreeting(); }, 500);
+            } else if (pwd === '2') {
+                document.getElementById('pagePwd2').classList.add('active');
+                renderHiddenToPagePwd2();
+                silentUnlock(); sessionStorage.setItem('currentPage', 'pagePwd2'); failCount = 0;
+            } else if (pwd === '3') {
+                document.getElementById('pagePwd3').classList.add('active'); silentUnlock(); sessionStorage.setItem('currentPage', 'pagePwd3'); failCount = 0;
+            } else if (pwd === '4') {
+                document.getElementById('pagePwd4').classList.add('active'); silentUnlock(); sessionStorage.setItem('currentPage', 'pagePwd4'); failCount = 0;
+            } else {
+                failCount++; document.getElementById('lockScreen').style.display = 'flex';
+                if (failCount >= 5) { lockUntil = now + 30000; document.getElementById('errorMsg').innerText = '🚫 错误次数过多，锁定30秒'; document.getElementById('passwordInput').disabled = true; document.getElementById('mainEnterBtn').disabled = true; setTimeout(function() { document.getElementById('passwordInput').disabled = false; document.getElementById('mainEnterBtn').disabled = false; document.getElementById('errorMsg').innerText = ''; failCount = 0; }, 30000); }
+                else { document.getElementById('errorMsg').innerText = '❌ 密码错误 (' + failCount + '/5)'; }
+                document.getElementById('passwordInput').value = ''; document.getElementById('passwordInput').focus();
+            }
+        }
+
+        function backToLock() { hideAllPages(); lock(); document.getElementById('lockScreen').style.display = 'flex'; document.getElementById('passwordInput').value = ''; document.getElementById('errorMsg').innerText = ''; document.getElementById('passwordInput').focus(); }
+        function backToMain() { hideAllPages(); document.getElementById('mainContent').style.display = 'flex'; document.getElementById('topBarEl').classList.add('unlocked'); document.getElementById('recommendBanner').classList.add('unlocked'); sessionStorage.setItem('currentPage', 'mainContent'); }
+
+        document.addEventListener('keydown', function(e) { if(e.key==='Escape'){ closeSettings(); closeAdminModal(); closeHaifangModal(); closeAdminChannel(); closeHaifangChannel(); closeHiddenChannel(); } });
+    </script>
+
+</body>
+</html>
