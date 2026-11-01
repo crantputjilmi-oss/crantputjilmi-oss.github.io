@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MySite</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { background: #0a0a0a; color: #e0e0e0; font-family: 'Courier New', monospace; min-height: 100vh; }
+.nav { background: #111; border-bottom: 1px solid #222; padding: 12px 16px; display: flex; gap: 16px; flex-wrap: wrap; }
+.nav a { color: #888; text-decoration: none; cursor: pointer; padding: 4px 8px; border-radius: 4px; font-size: 14px; }
+.nav a:hover, .nav a.active { color: #00ff88; background: #0d1a0d; }
+.nav .title { color: #00ff88; font-weight: bold; margin-right: 12px; }
+.page { display: none; padding: 20px; max-width: 900px; margin: 0 auto; }
+.page.active { display: block; }
+.msg-form { background: #111; border: 1px solid #222; border-radius: 8px; padding: 16px; margin-bottom: 20px; }
+.msg-form input, .msg-form textarea { width: 100%; background: #0d0d0d; border: 1px solid #333; color: #e0e0e0; padding: 10px; border-radius: 4px; font-family: inherit; font-size: 14px; margin-bottom: 10px; }
+.msg-form textarea { min-height: 80px; resize: vertical; }
+.msg-form button { background: #00ff88; color: #000; border: none; padding: 10px 20px; border-radius: 4px; cursor: pointer; font-weight: bold; font-family: inherit; }
+.msg-list { display: flex; flex-direction: column; gap: 12px; }
+.msg-item { background: #111; border: 1px solid #222; border-radius: 8px; padding: 14px; }
+.msg-item .msg-header { display: flex; justify-content: space-between; margin-bottom: 8px; flex-wrap: wrap; gap: 8px; }
+.msg-item .msg-name { color: #00ff88; font-weight: bold; }
+.msg-item .msg-time { color: #555; font-size: 12px; }
+.msg-item .msg-content { color: #ccc; line-height: 1.6; word-break: break-all; }
+.toast { position: fixed; top: 20px; right: 20px; padding: 12px 20px; border-radius: 6px; font-size: 14px; z-index: 1000; display: none; }
+.toast.success { background: #0d3a0d; color: #00ff88; border: 1px solid #00ff88; }
+.toast.error { background: #3a0d0d; color: #ff5555; border: 1px solid #ff5555; }
+.admin-login { background: #111; border: 1px solid #222; border-radius: 8px; padding: 20px; max-width: 400px; margin: 40px auto; }
+.admin-login input { width: 100%; background: #0d0d0d; border: 1px solid #333; color: #e0e0e0; padding: 12px; border-radius: 4px; font-family: inherit; font-size: 16px; margin-bottom: 12px; }
+.admin-login button { width: 100%; background: #00ff88; color: #000; border: none; padding: 12px; border-radius: 4px; cursor: pointer; font-weight: bold; }
+.admin-panel { display: none; }
+.admin-panel.show { display: block; }
+.admin-section { background: #111; border: 1px solid #222; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+.admin-section h3 { color: #00ff88; margin-bottom: 12px; }
+.admin-section .item { padding: 10px; border-bottom: 1px solid #222; font-size: 13px; }
+.admin-section .item:last-child { border-bottom: none; }
+.admin-section .item .del-btn { float: right; background: #ff4444; color: #fff; border: none; padding: 2px 8px; border-radius: 3px; cursor: pointer; font-size: 11px; font-family: inherit; }
+.stats { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+.stat-card { background: #111; border: 1px solid #222; border-radius: 8px; padding: 16px; flex: 1; min-width: 120px; text-align: center; }
+.stat-card .num { font-size: 28px; font-weight: bold; color: #00ff88; }
+.stat-card .label { font-size: 12px; color: #888; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="nav">
+  <span class="title">MySite</span>
+  <a onclick="showPage('guestbook')" class="active" id="nav-guestbook">留言板</a>
+  <a onclick="showPage('admin')" id="nav-admin">管理</a>
+</div>
+<div class="toast" id="toast"></div>
+
+<div class="page active" id="guestbook-page">
+  <div class="msg-form">
+    <input type="text" id="msg-name" placeholder="昵称（可选）" maxlength="30">
+    <textarea id="msg-content" placeholder="说点什么..." maxlength="500"></textarea>
+    <button onclick="submitMsg()">发布</button>
+  </div>
+  <div class="msg-list" id="msg-list"><div style="color:#555;text-align:center;padding:20px">加载中...</div></div>
+</div>
+
+<div class="page" id="admin-page">
+  <div class="admin-login" id="admin-login">
+    <h3 style="color:#00ff88;margin-bottom:16px">管理面板登录</h3>
+    <input type="password" id="admin-pwd" placeholder="管理密码" onkeydown="if(event.key==='Enter')adminLogin()">
+    <button onclick="adminLogin()">登录</button>
+  </div>
+  <div class="admin-panel" id="admin-panel">
+    <div class="stats" id="admin-stats"></div>
+    <div class="admin-section"><h3>留言管理</h3><div id="admin-msgs"></div></div>
+    <div class="admin-section"><h3>访问记录</h3><div id="admin-visits"></div></div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://uckpwvrxopgqwycjvdgc.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_dTnGa3HTbJK8ySV70Ij13A_nDWTlBdp';
+const ADMIN_PASSWORD = 'admin123';
+const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+function showPage(n) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav a').forEach(a => a.classList.remove('active'));
+  document.getElementById(n + '-page').classList.add('active');
+  document.getElementById('nav-' + n).classList.add('active');
+  if (n === 'guestbook') loadMessages();
+}
+function toast(m, t='info') { const el=document.getElementById('toast'); el.textContent=m; el.className='toast '+t; el.style.display='block'; setTimeout(()=>el.style.display='none',3000); }
+function esc(s) { const d=document.createElement('div'); d.textContent=s; return d.innerHTML; }
+
+// 自动记录访问
+(async () => {
+  try {
+    await sb.from('visits').insert({ visitor_key: 'v_'+Date.now(), info: JSON.stringify({ t:new Date().toISOString(), ua:navigator.userAgent, screen:screen.width+'x'+screen.height }) });
+  } catch(e) {}
+})();
+
+// 留言
+async function loadMessages() {
+  const list = document.getElementById('msg-list');
+  try {
+    const { data } = await sb.from('messages').select('*').order('created_at',{ascending:false}).limit(50);
+    if (!data?.length) { list.innerHTML='<div style="color:#555;text-align:center;padding:20px">暂无留言</div>'; return; }
+    list.innerHTML = '';
+    data.forEach(m => {
+      list.innerHTML += `<div class="msg-item" id="msg-${m.id}"><div class="msg-header"><span class="msg-name">${esc(m.nickname||'匿名')}</span><span class="msg-time">${new Date(m.created_at).toLocaleString('zh-CN')}</span></div><div class="msg-content">${esc(m.content)}</div></div>`;
+    });
+  } catch(e) { list.innerHTML='<div style="color:#ff5555">加载失败</div>'; }
+}
+async function submitMsg() {
+  const name = document.getElementById('msg-name').value.trim() || '匿名';
+  const content = document.getElementById('msg-content').value.trim();
+  if (!content) { toast('内容不能为空','error'); return; }
+  const btn = document.querySelector('.msg-form button'); btn.disabled=true; btn.textContent='发布中...';
+  const { error } = await sb.from('messages').insert({ nickname: name, content });
+  if (error) toast('失败: '+error.message,'error'); else { toast('发布成功','success'); document.getElementById('msg-name').value=''; document.getElementById('msg-content').value=''; loadMessages(); }
+  btn.disabled=false; btn.textContent='发布';
+}
+
+// 管理
+function adminLogin() {
+  if (document.getElementById('admin-pwd').value === ADMIN_PASSWORD) {
+    document.getElementById('admin-login').style.display='none';
+    document.getElementById('admin-panel').classList.add('show');
+    loadAdmin(); toast('登录成功','success');
+  } else toast('密码错误','error');
+}
+async function loadAdmin() {
+  const [{count:mc},{count:vc}] = await Promise.all([sb.from('messages').select('*',{count:'exact',head:true}), sb.from('visits').select('*',{count:'exact',head:true})]);
+  document.getElementById('admin-stats').innerHTML = `<div class="stat-card"><div class="num">${mc||0}</div><div class="label">留言</div></div><div class="stat-card"><div class="num">${vc||0}</div><div class="label">访问</div></div>`;
+  const { data:msgs } = await sb.from('messages').select('*').order('created_at',{ascending:false}).limit(30);
+  document.getElementById('admin-msgs').innerHTML = (msgs||[]).map(m=>`<div class="item"><button class="del-btn" onclick="delMsg(${m.id})">删</button><strong style="color:#00ff88">${esc(m.nickname||'匿名')}</strong> <span style="color:#555;font-size:12px">${new Date(m.created_at).toLocaleString('zh-CN')}</span><br><span style="color:#ccc">${esc(m.content.slice(0,80))}</span></div>`).join('') || '<div style="color:#555">无</div>';
+  const { data:visits } = await sb.from('visits').select('*').order('created_at',{ascending:false}).limit(20);
+  document.getElementById('admin-visits').innerHTML = (visits||[]).map(v=>{ try{const i=JSON.parse(v.info);return `<div class="item"><span style="color:#5f87ff">${new Date(i.t).toLocaleString('zh-CN')}</span><br><span style="color:#888;font-size:12px">${esc(i.ua.slice(0,60))}</span><br><span style="color:#555;font-size:11px">${i.screen}</span></div>`;}catch{return '';} }).join('') || '<div style="color:#555">无</div>';
+}
+async function delMsg(id) {
+  if (!confirm('删除？')) return;
+  await sb.from('messages').delete().eq('id',id);
+  toast('已删除','success'); document.getElementById('msg-'+id)?.remove(); loadAdmin();
+}
+
+loadMessages();
+</script>
+</body>
+</html>
